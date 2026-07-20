@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { fetchSettings, saveSettings } from '../services/mockApi';
+import { fetchSettings, saveSettings } from '../services/api';
 
 const useSettingsStore = create(
   persist(

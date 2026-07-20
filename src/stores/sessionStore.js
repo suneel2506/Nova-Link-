@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { startRemoteSession, endRemoteSession } from '../services/mockApi';
+import { startRemoteSession, endRemoteSession } from '../services/api';
 
 const useSessionStore = create((set) => ({
   isConnected: false,

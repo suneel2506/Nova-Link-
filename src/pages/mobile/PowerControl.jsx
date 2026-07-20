@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import { executePowerAction } from '../../services/mockApi';
+import { executePowerAction } from '../../services/api';
 import useAuthStore from '../../stores/authStore';
 
 export default function PowerControl({ onBack, onLogout }) {

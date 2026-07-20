@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchSystemMetrics } from '../services/mockApi';
+import { fetchSystemMetrics } from '../services/api';
 
 const useSystemStore = create((set, get) => ({
   metrics: null,

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { loginUser } from '../services/mockApi';
+import { loginUser } from '../services/api';
 
 const useAuthStore = create(
   persist(

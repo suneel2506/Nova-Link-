@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchFiles, fetchTransfers, uploadFile, deleteFile, downloadFile } from '../services/mockApi';
+import { fetchFiles, fetchTransfers, uploadFile, deleteFile, downloadFile } from '../services/api';
 
 const useFileStore = create((set, get) => ({
   currentPath: '/',

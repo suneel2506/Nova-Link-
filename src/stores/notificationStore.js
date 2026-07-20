@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchNotifications } from '../services/mockApi';
+import { fetchNotifications } from '../services/api';
 import { generateId } from '../utils/helpers';
 
 const useNotificationStore = create((set, get) => ({

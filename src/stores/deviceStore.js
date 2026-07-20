@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchDevices, pairDevice } from '../services/mockApi';
+import { fetchDevices, pairDevice } from '../services/api';
 
 const useDeviceStore = create((set, get) => ({
   thisDevice: null,

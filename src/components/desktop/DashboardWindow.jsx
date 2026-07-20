@@ -9,7 +9,7 @@ import useSystemStore from '../../stores/systemStore';
 import useSettingsStore from '../../stores/settingsStore';
 import { generateOTP } from '../../utils/helpers';
 import activityData from '../../data/activity.json';
-import { executePowerAction } from '../../services/mockApi';
+import { executePowerAction } from '../../services/api';
 
 export default function DashboardWindow() {
   const { pairedDevices, fetchDevices } = useDeviceStore();

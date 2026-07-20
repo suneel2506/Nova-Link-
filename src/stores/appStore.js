@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { fetchApps, launchApp as launchAppApi } from '../services/mockApi';
+import { fetchApps, launchApp as launchAppApi } from '../services/api';
 
 const useAppStore = create(
   persist(
