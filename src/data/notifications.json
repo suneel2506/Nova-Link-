@@ -1,0 +1,7 @@
+[
+  { "id": "notif-1", "title": "Remote Session Started", "message": "My Phone connected to your laptop", "time": "9:41 AM", "type": "info", "read": false },
+  { "id": "notif-2", "title": "File Transfer Complete", "message": "Screenshot.png sent to My Phone", "time": "9:35 AM", "type": "success", "read": false },
+  { "id": "notif-3", "title": "Session Ended", "message": "My Phone disconnected", "time": "9:20 AM", "type": "warning", "read": true },
+  { "id": "notif-4", "title": "Settings Updated", "message": "Display settings changed successfully", "time": "9:10 AM", "type": "info", "read": true },
+  { "id": "notif-5", "title": "New Device Paired", "message": "NOVA Web has been paired", "time": "8:15 AM", "type": "success", "read": true }
+]

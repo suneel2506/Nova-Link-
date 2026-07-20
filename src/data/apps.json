@@ -1,0 +1,17 @@
+{
+  "categories": ["All", "Developer", "Browser", "Media", "Design", "Productivity", "Social"],
+  "apps": [
+    { "id": "vscode", "name": "VS Code", "icon": "Code", "category": "Developer", "isFavorite": true, "isInstalled": true, "version": "1.89.0", "size": "340 MB" },
+    { "id": "chrome", "name": "Google Chrome", "icon": "Chrome", "category": "Browser", "isFavorite": true, "isInstalled": true, "version": "126.0", "size": "220 MB" },
+    { "id": "spotify", "name": "Spotify", "icon": "Music", "category": "Media", "isFavorite": false, "isInstalled": true, "version": "1.2.24", "size": "180 MB" },
+    { "id": "figma", "name": "Figma", "icon": "Layers", "category": "Design", "isFavorite": true, "isInstalled": true, "version": "124.0", "size": "290 MB" },
+    { "id": "notion", "name": "Notion", "icon": "FileText", "category": "Productivity", "isFavorite": false, "isInstalled": true, "version": "3.8.0", "size": "195 MB" },
+    { "id": "whatsapp", "name": "WhatsApp", "icon": "MessageCircle", "category": "Social", "isFavorite": false, "isInstalled": true, "version": "2.4.6", "size": "130 MB" },
+    { "id": "telegram", "name": "Telegram", "icon": "Send", "category": "Social", "isFavorite": false, "isInstalled": true, "version": "5.1.0", "size": "95 MB" },
+    { "id": "slack", "name": "Slack", "icon": "Slack", "category": "Social", "isFavorite": false, "isInstalled": true, "version": "4.39.0", "size": "310 MB" },
+    { "id": "zoom", "name": "Zoom", "icon": "Video", "category": "Social", "isFavorite": false, "isInstalled": true, "version": "6.0.2", "size": "250 MB" },
+    { "id": "terminal", "name": "Terminal", "icon": "Terminal", "category": "Developer", "isFavorite": false, "isInstalled": true, "version": "1.20", "size": "15 MB" },
+    { "id": "notepad", "name": "Notepad++", "icon": "FileEdit", "category": "Developer", "isFavorite": false, "isInstalled": true, "version": "8.6.4", "size": "12 MB" },
+    { "id": "vlc", "name": "VLC Player", "icon": "PlayCircle", "category": "Media", "isFavorite": false, "isInstalled": true, "version": "3.0.21", "size": "145 MB" }
+  ]
+}

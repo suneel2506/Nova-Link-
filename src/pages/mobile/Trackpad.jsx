@@ -1,11 +1,16 @@
-import React, { useState, useRef } from 'react';
-import { ChevronLeft, Info, HelpCircle } from 'lucide-react';
+import React, { useState, useRef, useCallback } from 'react';
+import { ChevronLeft, Info } from 'lucide-react';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 export default function Trackpad({ onBack }) {
   const [pointer, setPointer] = useState({ x: 150, y: 200 });
+  const [clickFeedback, setClickFeedback] = useState(null); // 'left' | 'right' | null
+  const [scrollY, setScrollY] = useState(0);
   const padRef = useRef(null);
+  const lastTouchY = useRef(null);
 
-  const handlePointerMove = (e) => {
+  const handlePointerMove = useCallback((e) => {
     if (!padRef.current) return;
     const rect = padRef.current.getBoundingClientRect();
     
@@ -17,29 +22,61 @@ export default function Trackpad({ onBack }) {
     const y = Math.max(0, Math.min(clientY - rect.top, rect.height));
     
     setPointer({ x, y });
+  }, []);
+
+  const handleTouchStart = useCallback((e) => {
+    handlePointerMove(e);
+  }, [handlePointerMove]);
+
+  const handleClick = (type) => {
+    setClickFeedback(type);
+    toast(`${type === 'left' ? 'Left' : 'Right'} click sent`, { icon: type === 'left' ? '🖱️' : '📋' });
+    setTimeout(() => setClickFeedback(null), 200);
   };
 
-  const handleTouchStart = (e) => {
-    handlePointerMove(e);
+  const handleScrollTouchStart = (e) => {
+    lastTouchY.current = e.touches[0].clientY;
+  };
+
+  const handleScrollTouchMove = (e) => {
+    if (lastTouchY.current === null) return;
+    const deltaY = lastTouchY.current - e.touches[0].clientY;
+    lastTouchY.current = e.touches[0].clientY;
+    setScrollY((prev) => prev + deltaY);
+  };
+
+  const handleScrollTouchEnd = () => {
+    lastTouchY.current = null;
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-between overflow-hidden bg-[#070b13]">
+    <motion.div
+      className="flex-1 flex flex-col justify-between overflow-hidden bg-[#070b13]"
+      initial={{ opacity: 0, x: 30 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3 }}
+    >
       {/* Header */}
       <div className="px-5 py-3 flex items-center justify-between border-b border-slate-900/50 shrink-0 z-10 bg-slate-950/20">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="text-slate-400 hover:text-white">
+          <motion.button onClick={onBack} className="text-slate-400 hover:text-white" whileTap={{ scale: 0.9 }} aria-label="Go back">
             <ChevronLeft size={20} />
-          </button>
+          </motion.button>
           <span className="text-white text-sm font-semibold">Trackpad</span>
         </div>
-        <button className="text-slate-400 hover:text-white p-1">
+        <motion.button className="text-slate-400 hover:text-white p-1" whileTap={{ scale: 0.9 }} aria-label="Info">
           <Info size={18} />
-        </button>
+        </motion.button>
+      </div>
+
+      {/* Coordinates Display */}
+      <div className="px-5 pt-3 flex items-center justify-between">
+        <span className="text-[9px] text-slate-500 font-mono">X: {Math.round(pointer.x)} Y: {Math.round(pointer.y)}</span>
+        <span className="text-[9px] text-slate-500 font-mono">Scroll: {Math.round(scrollY)}</span>
       </div>
 
       {/* Main Touch Area */}
-      <div className="flex-1 px-5 py-4 flex flex-col gap-4 overflow-hidden">
+      <div className="flex-1 px-5 py-3 flex flex-col gap-4 overflow-hidden">
         <div
           ref={padRef}
           onMouseMove={handlePointerMove}
@@ -58,35 +95,59 @@ export default function Trackpad({ onBack }) {
           </div>
 
           {/* Interactive Cursor Dot */}
-          <div
-            className="absolute w-8 h-8 rounded-full bg-blue-500/20 border border-blue-400 flex items-center justify-center pointer-events-none transition-transform duration-75 shadow-lg shadow-blue-500/20"
-            style={{
+          <motion.div
+            className="absolute w-8 h-8 rounded-full bg-blue-500/20 border border-blue-400 flex items-center justify-center pointer-events-none shadow-lg shadow-blue-500/20"
+            animate={{
               left: pointer.x - 16,
               top: pointer.y - 16,
             }}
+            transition={{ type: 'spring', damping: 30, stiffness: 500 }}
           >
             <div className="w-2.5 h-2.5 bg-blue-400 rounded-full"></div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Clicks & Scroll Row */}
         <div className="space-y-3 shrink-0">
           {/* Left / Right Click buttons */}
           <div className="grid grid-cols-2 gap-3">
-            <button className="py-4 bg-slate-900/60 border border-slate-800 rounded-xl text-slate-300 font-medium text-xs hover:bg-slate-800/40 active:bg-blue-600/10 active:border-blue-500/30 cursor-pointer">
+            <motion.button
+              onClick={() => handleClick('left')}
+              className={`py-4 border rounded-xl font-medium text-xs cursor-pointer transition-all ${
+                clickFeedback === 'left'
+                  ? 'bg-blue-600/20 border-blue-500/40 text-blue-300'
+                  : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-800/40'
+              }`}
+              whileTap={{ scale: 0.95 }}
+              aria-label="Left click"
+            >
               Left Click
-            </button>
-            <button className="py-4 bg-slate-900/60 border border-slate-800 rounded-xl text-slate-300 font-medium text-xs hover:bg-slate-800/40 active:bg-blue-600/10 active:border-blue-500/30 cursor-pointer">
+            </motion.button>
+            <motion.button
+              onClick={() => handleClick('right')}
+              className={`py-4 border rounded-xl font-medium text-xs cursor-pointer transition-all ${
+                clickFeedback === 'right'
+                  ? 'bg-blue-600/20 border-blue-500/40 text-blue-300'
+                  : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-800/40'
+              }`}
+              whileTap={{ scale: 0.95 }}
+              aria-label="Right click"
+            >
               Right Click
-            </button>
+            </motion.button>
           </div>
 
           {/* Scroll Area */}
-          <div className="w-full py-3 bg-slate-950 border border-slate-900 rounded-xl flex items-center justify-center gap-2 select-none">
+          <div
+            className="w-full py-3 bg-slate-950 border border-slate-900 rounded-xl flex items-center justify-center gap-2 select-none cursor-ns-resize"
+            onTouchStart={handleScrollTouchStart}
+            onTouchMove={handleScrollTouchMove}
+            onTouchEnd={handleScrollTouchEnd}
+          >
             <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">↕ Scroll Wheel</span>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

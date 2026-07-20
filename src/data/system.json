@@ -1,0 +1,16 @@
+{
+  "cpu": { "usage": 23, "model": "Intel i5-1135G7", "temp": "44°C", "cores": 4, "threads": 8, "speed": "2.4 GHz" },
+  "ram": { "usage": 45, "total": "16 GB", "used": "7.2 GB", "available": "8.8 GB", "type": "DDR4" },
+  "disk": { "usage": 62, "total": "512 GB", "used": "312 GB", "available": "200 GB", "readSpeed": "3200 MB/s", "writeSpeed": "2800 MB/s" },
+  "battery": { "level": 78, "status": "Charging", "health": "Good", "estimatedTime": "4h 30m", "voltage": "11.4V" },
+  "network": { "upload": "12.4 Mbps", "download": "8.6 Mbps", "latency": "12ms", "ssid": "HomeWiFi-5G", "type": "WiFi", "signalStrength": 85 },
+  "uptime": "2h 48m",
+  "os": "Windows 11 Pro",
+  "hostname": "MY-LAPTOP",
+  "history": {
+    "cpu": [18, 22, 25, 19, 23, 28, 20, 24, 23, 21, 26, 23, 20, 25, 22, 27, 23, 19, 24, 23],
+    "ram": [40, 42, 43, 44, 45, 44, 45, 43, 45, 46, 44, 45, 43, 44, 45, 45, 44, 46, 45, 45],
+    "disk": [62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62],
+    "network": [10, 30, 20, 80, 50, 90, 40, 60, 35, 75, 55, 45, 65, 30, 85, 40, 70, 50, 60, 45]
+  }
+}

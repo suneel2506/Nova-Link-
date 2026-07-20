@@ -1,0 +1,54 @@
+{
+  "root": {
+    "path": "/",
+    "name": "This PC",
+    "type": "root",
+    "children": ["c-drive", "d-drive"]
+  },
+  "drives": [
+    { "id": "c-drive", "name": "Local Disk (C:)", "path": "/C:", "size": "120 GB / 238 GB", "usedBytes": 128849018880, "totalBytes": 255547269120, "type": "drive" },
+    { "id": "d-drive", "name": "Local Disk (D:)", "path": "/D:", "size": "315 GB / 512 GB", "usedBytes": 338261319680, "totalBytes": 549755813888, "type": "drive" }
+  ],
+  "folders": {
+    "/": [
+      { "id": "c-drive", "name": "Local Disk (C:)", "path": "/C:", "type": "drive", "size": "120 GB / 238 GB", "modified": "2026-07-20" },
+      { "id": "d-drive", "name": "Local Disk (D:)", "path": "/D:", "type": "drive", "size": "315 GB / 512 GB", "modified": "2026-07-19" }
+    ],
+    "/C:": [
+      { "id": "docs", "name": "Documents", "path": "/C:/Documents", "type": "folder", "items": 248, "size": "2.4 GB", "modified": "2026-07-20" },
+      { "id": "downloads", "name": "Downloads", "path": "/C:/Downloads", "type": "folder", "items": 1420, "size": "18.3 GB", "modified": "2026-07-20" },
+      { "id": "pictures", "name": "Pictures", "path": "/C:/Pictures", "type": "folder", "items": 832, "size": "12.1 GB", "modified": "2026-07-18" },
+      { "id": "videos", "name": "Videos", "path": "/C:/Videos", "type": "folder", "items": 94, "size": "45.6 GB", "modified": "2026-07-15" },
+      { "id": "music", "name": "Music", "path": "/C:/Music", "type": "folder", "items": 312, "size": "8.9 GB", "modified": "2026-07-10" }
+    ],
+    "/C:/Documents": [
+      { "id": "doc-1", "name": "Project_Report.pdf", "path": "/C:/Documents/Project_Report.pdf", "type": "file", "ext": "pdf", "size": "2.4 MB", "sizeBytes": 2516582, "modified": "2026-07-20" },
+      { "id": "doc-2", "name": "Budget_2026.xlsx", "path": "/C:/Documents/Budget_2026.xlsx", "type": "file", "ext": "xlsx", "size": "1.1 MB", "sizeBytes": 1153434, "modified": "2026-07-18" },
+      { "id": "doc-3", "name": "Meeting_Notes.docx", "path": "/C:/Documents/Meeting_Notes.docx", "type": "file", "ext": "docx", "size": "340 KB", "sizeBytes": 348160, "modified": "2026-07-17" },
+      { "id": "doc-4", "name": "Presentation.pptx", "path": "/C:/Documents/Presentation.pptx", "type": "file", "ext": "pptx", "size": "5.8 MB", "sizeBytes": 6081740, "modified": "2026-07-15" },
+      { "id": "doc-5", "name": "Resume_Final.pdf", "path": "/C:/Documents/Resume_Final.pdf", "type": "file", "ext": "pdf", "size": "890 KB", "sizeBytes": 911360, "modified": "2026-07-10" },
+      { "id": "doc-sub", "name": "Work Projects", "path": "/C:/Documents/Work Projects", "type": "folder", "items": 34, "size": "1.2 GB", "modified": "2026-07-19" }
+    ],
+    "/C:/Downloads": [
+      { "id": "dl-1", "name": "installer_v2.exe", "path": "/C:/Downloads/installer_v2.exe", "type": "file", "ext": "exe", "size": "45.2 MB", "sizeBytes": 47395635, "modified": "2026-07-20" },
+      { "id": "dl-2", "name": "wallpaper_4k.jpg", "path": "/C:/Downloads/wallpaper_4k.jpg", "type": "file", "ext": "jpg", "size": "8.4 MB", "sizeBytes": 8808038, "modified": "2026-07-19" },
+      { "id": "dl-3", "name": "dataset.csv", "path": "/C:/Downloads/dataset.csv", "type": "file", "ext": "csv", "size": "12.6 MB", "sizeBytes": 13209395, "modified": "2026-07-18" },
+      { "id": "dl-4", "name": "archive.zip", "path": "/C:/Downloads/archive.zip", "type": "file", "ext": "zip", "size": "234 MB", "sizeBytes": 245366784, "modified": "2026-07-16" }
+    ],
+    "/C:/Pictures": [
+      { "id": "pic-1", "name": "Screenshot_01.png", "path": "/C:/Pictures/Screenshot_01.png", "type": "file", "ext": "png", "size": "1.2 MB", "sizeBytes": 1258291, "modified": "2026-07-20" },
+      { "id": "pic-2", "name": "Photo_Beach.jpg", "path": "/C:/Pictures/Photo_Beach.jpg", "type": "file", "ext": "jpg", "size": "3.5 MB", "sizeBytes": 3670016, "modified": "2026-07-18" },
+      { "id": "pic-3", "name": "Logo_Design.svg", "path": "/C:/Pictures/Logo_Design.svg", "type": "file", "ext": "svg", "size": "48 KB", "sizeBytes": 49152, "modified": "2026-07-15" }
+    ],
+    "/D:": [
+      { "id": "d-games", "name": "Games", "path": "/D:/Games", "type": "folder", "items": 12, "size": "180 GB", "modified": "2026-07-14" },
+      { "id": "d-backup", "name": "Backup", "path": "/D:/Backup", "type": "folder", "items": 56, "size": "95 GB", "modified": "2026-07-10" },
+      { "id": "d-media", "name": "Media", "path": "/D:/Media", "type": "folder", "items": 234, "size": "40 GB", "modified": "2026-07-08" }
+    ]
+  },
+  "transfers": [
+    { "id": "ft-1", "name": "Document.pdf", "size": "1.2 MB", "sizeBytes": 1258291, "direction": "to", "device": "My Phone", "time": "9:36 AM", "type": "pdf", "status": "completed", "progress": 100 },
+    { "id": "ft-2", "name": "Photo.png", "size": "2.5 MB", "sizeBytes": 2621440, "direction": "from", "device": "My Phone", "time": "9:30 AM", "type": "image", "status": "completed", "progress": 100 },
+    { "id": "ft-3", "name": "Presentation.pptx", "size": "5.8 MB", "sizeBytes": 6081740, "direction": "to", "device": "My Phone", "time": "9:15 AM", "type": "pptx", "status": "completed", "progress": 100 }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "general": {
+    "startWithWindows": true,
+    "minimizeToTray": true,
+    "runInBackground": true,
+    "autoUpdate": true
+  },
+  "display": {
+    "theme": "dark",
+    "language": "en",
+    "fontSize": "medium"
+  },
+  "notifications": {
+    "enabled": true,
+    "sound": true,
+    "sessionAlerts": true,
+    "fileTransferAlerts": true,
+    "systemAlerts": true
+  },
+  "security": {
+    "allowRemoteAccess": true,
+    "requirePassword": true,
+    "twoFactorAuth": false,
+    "autoLockTimeout": 5,
+    "encryptTransfers": true
+  },
+  "about": {
+    "appName": "Nova Link",
+    "version": "1.0.0",
+    "buildNumber": "2026.07.20",
+    "license": "Premium"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "thisDevice": {
+    "id": "this-laptop",
+    "name": "My Laptop",
+    "status": "Online",
+    "os": "Windows 11 Pro",
+    "ip": "192.168.1.10",
+    "type": "laptop",
+    "lastSeen": "Now",
+    "connectedSince": "2h 48m ago",
+    "agentVersion": "1.0.0"
+  },
+  "pairedDevices": [
+    {
+      "id": "phone-1",
+      "name": "My Phone",
+      "type": "phone",
+      "os": "Android • 192.168.1.14",
+      "status": "Active now",
+      "ip": "192.168.1.14",
+      "isActive": true,
+      "lastSeen": "Now",
+      "battery": 85
+    },
+    {
+      "id": "web-1",
+      "name": "NOVA Web",
+      "type": "web",
+      "os": "Chrome • Windows",
+      "status": "2 min ago",
+      "ip": "192.168.1.10",
+      "isActive": false,
+      "lastSeen": "2 min ago",
+      "battery": null
+    }
+  ],
+  "otherDevices": [
+    {
+      "id": "office-pc",
+      "name": "Office PC",
+      "type": "desktop",
+      "os": "Windows 11 Pro",
+      "status": "Offline",
+      "ip": "192.168.1.20",
+      "isActive": false,
+      "lastSeen": "3 days ago",
+      "battery": null
+    },
+    {
+      "id": "home-pc",
+      "name": "Home PC",
+      "type": "desktop",
+      "os": "Windows 11 Pro",
+      "status": "Offline",
+      "ip": "192.168.1.15",
+      "isActive": false,
+      "lastSeen": "1 week ago",
+      "battery": null
+    },
+    {
+      "id": "work-laptop",
+      "name": "Work Laptop",
+      "type": "laptop",
+      "os": "Windows 11 Pro",
+      "status": "Offline",
+      "ip": "192.168.1.25",
+      "isActive": false,
+      "lastSeen": "5 days ago",
+      "battery": null
+    }
+  ]
+}

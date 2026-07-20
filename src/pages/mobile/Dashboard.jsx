@@ -1,9 +1,31 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Search, Monitor, Mouse, Keyboard, Folder, Grid, Terminal, Cpu, Film, Power } from 'lucide-react';
+import { motion } from 'framer-motion';
 import RadialGauge from '../../components/ui/RadialGauge';
 import BottomNavigation from '../../components/BottomNavigation';
+import useSystemStore from '../../stores/systemStore';
+import useDeviceStore from '../../stores/deviceStore';
 
 export default function Dashboard({ onNavigate, setScreen }) {
+  const { metrics, startPolling, stopPolling } = useSystemStore();
+  const { thisDevice, fetchDevices } = useDeviceStore();
+
+  useEffect(() => {
+    fetchDevices();
+    startPolling(3000);
+    return () => stopPolling();
+  }, []);
+
+  const deviceName = thisDevice?.name || 'My Laptop';
+  const deviceOs = thisDevice?.os || 'Windows 11 Pro';
+  const deviceIp = thisDevice?.ip || '192.168.1.10';
+  const deviceStatus = thisDevice?.status || 'Online';
+
+  const cpuUsage = metrics?.cpu?.usage ?? 23;
+  const ramUsage = metrics?.ram?.usage ?? 45;
+  const batteryLevel = metrics?.battery?.level ?? 76;
+  const diskUsage = metrics?.disk?.usage ?? 62;
+
   const tiles = [
     { id: 'live', name: 'Live Screen', icon: Monitor, color: 'bg-indigo-600/10 text-indigo-400 border-indigo-500/20' },
     { id: 'trackpad', name: 'Trackpad', icon: Mouse, color: 'bg-emerald-600/10 text-emerald-400 border-emerald-500/20' },
@@ -17,7 +39,12 @@ export default function Dashboard({ onNavigate, setScreen }) {
   ];
 
   return (
-    <div className="flex-1 flex flex-col justify-between overflow-hidden bg-[#070b13]">
+    <motion.div
+      className="flex-1 flex flex-col justify-between overflow-hidden bg-[#070b13]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       {/* Header */}
       <div className="px-5 py-3 flex items-center justify-between border-b border-slate-900/50 shrink-0">
         <div className="flex items-center gap-2">
@@ -34,17 +61,23 @@ export default function Dashboard({ onNavigate, setScreen }) {
           </div>
           <span className="text-white text-sm font-bold tracking-wider">NOVA LINK</span>
         </div>
-        <button className="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-900/40 border border-slate-800/40">
+        <motion.button
+          className="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-900/40 border border-slate-800/40"
+          whileTap={{ scale: 0.9 }}
+          aria-label="Search"
+        >
           <Search size={16} />
-        </button>
+        </motion.button>
       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {/* Device Card */}
-        <div 
+        <motion.div 
           onClick={() => onNavigate('live')}
           className="relative h-28 rounded-2xl overflow-hidden cursor-pointer border border-blue-500/20 shadow-lg shadow-blue-950/20 flex flex-col justify-end p-4 group active:scale-[0.98] transition-transform duration-100"
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
         >
           {/* Wallpaper background gradient (Windows bloom emulation) */}
           <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-blue-900 to-indigo-950 group-hover:opacity-95 transition-opacity">
@@ -53,55 +86,57 @@ export default function Dashboard({ onNavigate, setScreen }) {
           
           <div className="relative z-10 flex justify-between items-end">
             <div>
-              <h3 className="text-white text-sm font-bold tracking-wide">My Laptop</h3>
-              <p className="text-slate-400 text-[10px] mt-0.5">Windows 11 Pro</p>
-              <p className="text-slate-500 text-[9px] mt-0.5 font-mono">192.168.1.10</p>
+              <h3 className="text-white text-sm font-bold tracking-wide">{deviceName}</h3>
+              <p className="text-slate-400 text-[10px] mt-0.5">{deviceOs}</p>
+              <p className="text-slate-500 text-[9px] mt-0.5 font-mono">{deviceIp}</p>
             </div>
             
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-              <span className="text-green-400 text-[9px] font-semibold uppercase tracking-wider">Online</span>
+              <span className="text-green-400 text-[9px] font-semibold uppercase tracking-wider">{deviceStatus}</span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Actions Grid */}
         <div className="grid grid-cols-3 gap-2.5">
           {tiles.map((tile) => {
             const Icon = tile.icon;
             return (
-              <button
+              <motion.button
                 key={tile.id}
                 onClick={() => onNavigate(tile.id)}
                 className={`flex flex-col items-center justify-center p-3 rounded-xl border border-transparent cursor-pointer active:scale-95 transition-all duration-100 ${tile.color}`}
+                whileTap={{ scale: 0.9 }}
               >
                 <Icon size={20} className="mb-1.5 stroke-[2]" />
                 <span className="text-[10px] font-medium text-slate-300 text-center tracking-wide">{tile.name}</span>
-              </button>
+              </motion.button>
             );
           })}
         </div>
 
         {/* System Overview */}
-        <div 
+        <motion.div 
           onClick={() => onNavigate('system')}
           className="bg-slate-900/40 border border-slate-900 rounded-2xl p-4 cursor-pointer hover:bg-slate-900/50"
+          whileTap={{ scale: 0.98 }}
         >
           <div className="flex justify-between items-center mb-3">
             <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">System Overview</h4>
             <span className="text-[10px] text-blue-400 font-semibold hover:underline">Detail &gt;</span>
           </div>
           <div className="grid grid-cols-4 gap-1">
-            <RadialGauge value={23} label="CPU" color="blue" />
-            <RadialGauge value={45} label="RAM" color="purple" />
-            <RadialGauge value={76} label="Battery" color="green" />
-            <RadialGauge value={62} label="Storage" color="cyan" />
+            <RadialGauge value={cpuUsage} label="CPU" color="blue" />
+            <RadialGauge value={ramUsage} label="RAM" color="purple" />
+            <RadialGauge value={batteryLevel} label="Battery" color="green" />
+            <RadialGauge value={diskUsage} label="Storage" color="cyan" />
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Bottom Nav */}
       <BottomNavigation activeTab="dashboard" onChange={setScreen} />
-    </div>
+    </motion.div>
   );
 }

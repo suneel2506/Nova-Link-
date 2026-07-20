@@ -1,0 +1,12 @@
+[
+  { "id": "act-1", "description": "Remote session started by My Phone", "time": "9:41 AM", "timestamp": 1721468460000, "type": "session_start", "device": "My Phone", "icon": "play" },
+  { "id": "act-2", "description": "File transferred — Screenshot.png", "time": "9:35 AM", "timestamp": 1721468100000, "type": "file_transfer", "file": "Screenshot.png", "icon": "file" },
+  { "id": "act-3", "description": "Remote session ended by My Phone", "time": "9:20 AM", "timestamp": 1721467200000, "type": "session_end", "device": "My Phone", "icon": "stop" },
+  { "id": "act-4", "description": "Settings changed — Display", "time": "9:10 AM", "timestamp": 1721466600000, "type": "settings", "detail": "Display", "icon": "settings" },
+  { "id": "act-5", "description": "File downloaded — Photo.png", "time": "8:30 AM", "timestamp": 1721464200000, "type": "file_download", "file": "Photo.png", "icon": "download" },
+  { "id": "act-6", "description": "Device paired — NOVA Web", "time": "8:15 AM", "timestamp": 1721463300000, "type": "device_paired", "device": "NOVA Web", "icon": "link" },
+  { "id": "act-7", "description": "System update checked", "time": "7:45 AM", "timestamp": 1721461500000, "type": "system", "detail": "No updates available", "icon": "refresh" },
+  { "id": "act-8", "description": "Remote session started by NOVA Web", "time": "7:30 AM", "timestamp": 1721460600000, "type": "session_start", "device": "NOVA Web", "icon": "play" },
+  { "id": "act-9", "description": "Power action — Sleep mode", "time": "Yesterday", "timestamp": 1721376000000, "type": "power", "detail": "Sleep", "icon": "moon" },
+  { "id": "act-10", "description": "File transferred — Report.pdf", "time": "Yesterday", "timestamp": 1721372400000, "type": "file_transfer", "file": "Report.pdf", "icon": "file" }
+]

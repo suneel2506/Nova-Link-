@@ -1,10 +1,26 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 
 export default function SplashScreen({ onNext }) {
+  const [showTapHint, setShowTapHint] = useState(false);
+
+  useEffect(() => {
+    // Show tap hint after 1.5s
+    const hintTimer = setTimeout(() => setShowTapHint(true), 1500);
+    // Auto-advance after 3s if no tap
+    const autoTimer = setTimeout(() => onNext(), 3000);
+    return () => {
+      clearTimeout(hintTimer);
+      clearTimeout(autoTimer);
+    };
+  }, [onNext]);
+
   return (
     <div 
       className="flex-1 flex flex-col items-center justify-between py-16 px-6 relative cursor-pointer overflow-hidden bg-[#070b13]"
       onClick={onNext}
+      role="button"
+      aria-label="Tap to continue to login"
     >
       {/* Wave Circles Background */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -23,9 +39,19 @@ export default function SplashScreen({ onNext }) {
       <div></div> {/* Top spacer */}
 
       {/* Main Logo & Title */}
-      <div className="flex flex-col items-center z-10">
+      <motion.div
+        className="flex flex-col items-center z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+      >
         {/* Hexagon N Logo */}
-        <div className="w-28 h-32 relative mb-6 drop-shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+        <motion.div
+          className="w-28 h-32 relative mb-6 drop-shadow-[0_0_20px_rgba(59,130,246,0.3)]"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
           <svg viewBox="0 0 100 115" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -46,18 +72,23 @@ export default function SplashScreen({ onNext }) {
               opacity="0.9"
             />
           </svg>
-        </div>
+        </motion.div>
         
         <h1 className="text-2xl font-bold tracking-[0.2em] text-white">NOVA LINK</h1>
         <p className="text-slate-400 text-xs mt-3 tracking-wide text-center max-w-[200px]">
           Your Laptop. Anywhere. Anytime.
         </p>
-      </div>
+      </motion.div>
 
       {/* Tap Instruction */}
-      <div className="text-slate-500 text-xs z-10 uppercase tracking-widest animate-pulse">
+      <motion.div
+        className="text-slate-500 text-xs z-10 uppercase tracking-widest"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showTapHint ? 1 : 0 }}
+        transition={{ duration: 0.5 }}
+      >
         Tap screen to begin
-      </div>
+      </motion.div>
     </div>
   );
 }
