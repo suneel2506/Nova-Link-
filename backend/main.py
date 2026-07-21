@@ -31,6 +31,7 @@ from backend.api.routers import (
     auth, devices, files, apps, activity,
     system, power, session, settings as settings_router,
     notifications, mouse, keyboard, clipboard, screen,
+    pairing,
 )
 
 logger = logging.getLogger("nova.api")
@@ -105,6 +106,7 @@ app.include_router(mouse.router, prefix=API_PREFIX)
 app.include_router(keyboard.router, prefix=API_PREFIX)
 app.include_router(clipboard.router, prefix=API_PREFIX)
 app.include_router(screen.router, prefix=API_PREFIX)
+app.include_router(pairing.router, prefix=API_PREFIX)
 
 
 # ── WebSocket Endpoint ───────────────────────────────

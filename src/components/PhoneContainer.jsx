@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PhoneSimulator from './PhoneSimulator';
 import SplashScreen from '../pages/mobile/SplashScreen';
 import LoginScreen from '../pages/mobile/LoginScreen';
@@ -13,11 +13,35 @@ import SystemMonitor from '../pages/mobile/SystemMonitor';
 import PowerControl from '../pages/mobile/PowerControl';
 import Settings from '../pages/mobile/Settings';
 import ActivityLogMobile from '../pages/mobile/ActivityLogMobile';
+import useAuthStore from '../stores/authStore';
+import LoadingSpinner from './ui/LoadingSpinner';
+
+// Protected screens that require authentication
+const PROTECTED_SCREENS = new Set([
+  'dashboard', 'devices', 'live', 'trackpad', 'keyboard',
+  'files', 'apps', 'system', 'power', 'settings', 'activity',
+]);
 
 export default function PhoneContainer() {
   const [currentScreen, setCurrentScreen] = useState('splash');
+  const { isAuthenticated, initialized, logout } = useAuthStore();
 
-  const handleLogout = () => {
+  // Redirect to login if trying to access a protected screen while unauthenticated
+  useEffect(() => {
+    if (initialized && !isAuthenticated && PROTECTED_SCREENS.has(currentScreen)) {
+      setCurrentScreen('login');
+    }
+  }, [isAuthenticated, initialized, currentScreen]);
+
+  // Auto-navigate to dashboard if already authenticated (after splash)
+  useEffect(() => {
+    if (initialized && isAuthenticated && (currentScreen === 'splash' || currentScreen === 'login')) {
+      setCurrentScreen('dashboard');
+    }
+  }, [initialized, isAuthenticated]);
+
+  const handleLogout = async () => {
+    await logout();
     setCurrentScreen('login');
   };
 
@@ -25,7 +49,25 @@ export default function PhoneContainer() {
     setCurrentScreen('dashboard');
   };
 
+  const handleNavigate = (id) => {
+    // Guard: require auth for protected screens
+    if (PROTECTED_SCREENS.has(id) && !isAuthenticated) {
+      setCurrentScreen('login');
+      return;
+    }
+    setCurrentScreen(id);
+  };
+
   const renderScreen = () => {
+    // Show loading while initializing auth
+    if (!initialized && PROTECTED_SCREENS.has(currentScreen)) {
+      return (
+        <div className="flex-1 flex items-center justify-center bg-[#070b13]">
+          <LoadingSpinner size={32} className="text-blue-500" />
+        </div>
+      );
+    }
+
     switch (currentScreen) {
       case 'splash':
         return <SplashScreen onNext={() => setCurrentScreen('login')} />;
@@ -39,12 +81,12 @@ export default function PhoneContainer() {
       case 'dashboard':
         return (
           <Dashboard 
-            onNavigate={(id) => setCurrentScreen(id)} 
-            setScreen={(id) => setCurrentScreen(id)} 
+            onNavigate={handleNavigate} 
+            setScreen={handleNavigate} 
           />
         );
       case 'devices':
-        return <Devices onBack={handleBack} setScreen={(id) => setCurrentScreen(id)} />;
+        return <Devices onBack={handleBack} setScreen={handleNavigate} />;
       case 'live':
         return <LiveScreen onBack={handleBack} />;
       case 'trackpad':
@@ -64,14 +106,14 @@ export default function PhoneContainer() {
           <Settings 
             onBack={handleBack} 
             onLogout={handleLogout} 
-            setScreen={(id) => setCurrentScreen(id)} 
+            setScreen={handleNavigate} 
           />
         );
       case 'activity':
         return (
           <ActivityLogMobile 
             onBack={handleBack} 
-            setScreen={(id) => setCurrentScreen(id)} 
+            setScreen={handleNavigate} 
           />
         );
       default:

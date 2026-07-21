@@ -82,7 +82,7 @@ class ConnectionManager:
         if conn.client_type == "agent" and device_id:
             self._device_agents[device_id] = client_id
 
-        logger.info(f"WS authenticated: {client_id} → user={user_id} device={device_id}")
+        logger.info(f"WS authenticated: {client_id} -> user={user_id} device={device_id}")
 
     def disconnect(self, client_id: str) -> DeviceConnection | None:
         """Remove a client from all indexes. Returns the removed connection."""

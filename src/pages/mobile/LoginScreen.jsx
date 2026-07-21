@@ -8,15 +8,18 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 export default function LoginScreen({ onBack, onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading } = useAuthStore();
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const { login, register: authRegister, loading } = useAuthStore();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     watch,
+    reset,
   } = useForm({
     defaultValues: {
+      name: '',
       email: '',
       password: '',
       rememberMe: false,
@@ -25,12 +28,22 @@ export default function LoginScreen({ onBack, onLogin }) {
 
   const onSubmit = async (data) => {
     try {
-      await login(data.email, data.password, data.rememberMe);
-      toast.success('Welcome back!');
+      if (isRegisterMode) {
+        await authRegister(data.email, data.password, data.name || 'User');
+        toast.success('Account created!');
+      } else {
+        await login(data.email, data.password, data.rememberMe);
+        toast.success('Welcome back!');
+      }
       onLogin();
     } catch (err) {
-      toast.error(err.message || 'Login failed');
+      toast.error(err.message || (isRegisterMode ? 'Registration failed' : 'Login failed'));
     }
+  };
+
+  const toggleMode = () => {
+    setIsRegisterMode(!isRegisterMode);
+    reset();
   };
 
   return (
@@ -65,13 +78,27 @@ export default function LoginScreen({ onBack, onLogin }) {
             <path d="M30 30 L45 30 L70 70 L70 30 L80 30 L80 85 L65 85 L40 45 L40 85 L30 85 Z" fill="#ffffff" opacity="0.9" />
           </svg>
         </div>
-        <h2 className="text-white text-lg font-semibold tracking-wide">Welcome Back</h2>
-        <p className="text-slate-400 text-xs mt-1">Sign in to continue</p>
+        <h2 className="text-white text-lg font-semibold tracking-wide">{isRegisterMode ? 'Create Account' : 'Welcome Back'}</h2>
+        <p className="text-slate-400 text-xs mt-1">{isRegisterMode ? 'Sign up to get started' : 'Sign in to continue'}</p>
       </div>
 
       {/* Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col justify-between">
         <div className="space-y-4">
+          {isRegisterMode && (
+            <div>
+              <input 
+                type="text" 
+                placeholder="Full Name"
+                {...register('name', { required: isRegisterMode ? 'Name is required' : false })}
+                className={`w-full px-4 py-3 bg-slate-900/60 border rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all duration-200 ${errors.name ? 'border-rose-500/60' : 'border-slate-800/80'}`}
+                aria-label="Full Name"
+              />
+              {errors.name && (
+                <p className="text-[10px] text-rose-400 mt-1 ml-1">{errors.name.message}</p>
+              )}
+            </div>
+          )}
           <div>
             <input 
               type="text" 
@@ -127,17 +154,17 @@ export default function LoginScreen({ onBack, onLogin }) {
         <div className="mt-8 space-y-6">
           <motion.button 
             type="submit"
-            disabled={isLoading}
+            disabled={loading}
             className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl text-sm transition-all duration-200 shadow-lg shadow-blue-500/10 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             whileTap={{ scale: 0.97 }}
           >
-            {isLoading ? (
+            {loading ? (
               <>
                 <LoadingSpinner size={16} className="text-white" />
-                Signing in...
+                {isRegisterMode ? 'Creating account...' : 'Signing in...'}
               </>
             ) : (
-              'LOGIN'
+              isRegisterMode ? 'CREATE ACCOUNT' : 'LOGIN'
             )}
           </motion.button>
 
@@ -184,8 +211,8 @@ export default function LoginScreen({ onBack, onLogin }) {
           </div>
 
           <div className="text-center text-xs text-slate-400">
-            Don't have an account?{' '}
-            <button type="button" className="text-blue-400 hover:underline cursor-pointer" onClick={() => toast('Sign up coming soon!', { icon: '🚀' })}>Sign Up</button>
+            {isRegisterMode ? 'Already have an account? ' : "Don't have an account? "}
+            <button type="button" className="text-blue-400 hover:underline cursor-pointer" onClick={toggleMode}>{isRegisterMode ? 'Sign In' : 'Sign Up'}</button>
           </div>
         </div>
       </form>
