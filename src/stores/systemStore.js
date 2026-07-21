@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { fetchSystemMetrics } from '../services/api';
+import websocketManager from '../services/websocketManager';
 
 const useSystemStore = create((set, get) => ({
   metrics: null,
@@ -53,6 +54,30 @@ const useSystemStore = create((set, get) => ({
       set({ pollingInterval: null });
     }
   },
+
+  // ── Real-time updater (called by WS push from agent) ───
+  _updateMetrics: (data) => {
+    set((state) => ({
+      metrics: {
+        ...state.metrics,
+        cpu: data.cpu || state.metrics?.cpu,
+        ram: data.ram || state.metrics?.ram,
+        disk: data.disk || state.metrics?.disk,
+        battery: data.battery || state.metrics?.battery,
+        network: data.network || state.metrics?.network,
+        uptime: data.uptime || state.metrics?.uptime,
+        os: data.os || state.metrics?.os,
+        hostname: data.hostname || state.metrics?.hostname,
+      },
+      history: data.history || state.history,
+    }));
+  },
 }));
+
+// ── WebSocket Event Subscription ────────────────────
+// Agent pushes system metrics → backend relays → browser receives here.
+websocketManager.on('system_updated', (data) => {
+  useSystemStore.getState()._updateMetrics(data);
+});
 
 export default useSystemStore;

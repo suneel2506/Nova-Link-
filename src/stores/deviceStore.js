@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { fetchDevices, pairDevice } from '../services/api';
+import websocketManager from '../services/websocketManager';
 
 const useDeviceStore = create((set, get) => ({
   thisDevice: null,
@@ -83,6 +84,84 @@ const useDeviceStore = create((set, get) => ({
       throw new Error('Failed to pair device');
     }
   },
+
+  // ── Real-time updaters (called by WS events) ─────
+
+  _updateDeviceStatus: (deviceId, updates) => {
+    set((state) => {
+      const updateDevice = (d) =>
+        d.id === deviceId ? { ...d, ...updates } : d;
+
+      return {
+        thisDevice:
+          state.thisDevice?.id === deviceId
+            ? { ...state.thisDevice, ...updates }
+            : state.thisDevice,
+        pairedDevices: state.pairedDevices.map(updateDevice),
+        otherDevices: state.otherDevices.map(updateDevice),
+        selectedDevice:
+          state.selectedDevice?.id === deviceId
+            ? { ...state.selectedDevice, ...updates }
+            : state.selectedDevice,
+      };
+    });
+  },
+
+  _addDevice: (device) => {
+    set((state) => {
+      // Avoid duplicates
+      const exists =
+        state.pairedDevices.some((d) => d.id === device.id) ||
+        state.otherDevices.some((d) => d.id === device.id);
+      if (exists) {
+        // Update existing instead
+        get()._updateDeviceStatus(device.id, device);
+        return {};
+      }
+      return { pairedDevices: [...state.pairedDevices, device] };
+    });
+  },
 }));
+
+// ── WebSocket Event Subscriptions ───────────────────
+// These run once at module load and live for the app's lifetime.
+
+websocketManager.on('device_connected', (data) => {
+  const store = useDeviceStore.getState();
+  if (data.deviceId) {
+    store._addDevice({
+      id: data.deviceId,
+      name: data.name || 'Unknown Device',
+      type: data.type || 'desktop',
+      os: data.os || 'Unknown',
+      ip: data.ip || '',
+      status: data.status || 'Active now',
+      isActive: true,
+      lastSeen: 'Now',
+      agentVersion: data.agentVersion || null,
+      battery: data.battery || null,
+    });
+  }
+});
+
+websocketManager.on('device_disconnected', (data) => {
+  if (data.deviceId) {
+    useDeviceStore.getState()._updateDeviceStatus(data.deviceId, {
+      isActive: false,
+      status: data.status || 'Offline',
+      lastSeen: data.lastSeen || 'Just now',
+    });
+  }
+});
+
+websocketManager.on('device_status_changed', (data) => {
+  if (data.deviceId) {
+    useDeviceStore.getState()._updateDeviceStatus(data.deviceId, {
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      status: data.status || 'Online',
+      lastSeen: data.lastSeen || 'Now',
+    });
+  }
+});
 
 export default useDeviceStore;
