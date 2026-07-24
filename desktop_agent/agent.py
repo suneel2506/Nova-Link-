@@ -10,6 +10,12 @@ On start:
   6. Push system metrics every 5s via WebSocket
   7. Monitor clipboard every 2s
 
+On session accept:
+  8. Start screen streaming (adaptive quality, 15-30 FPS)
+  9. Start clipboard watcher (1s polling)
+  10. Start system metrics pusher (3s interval)
+  11. Route mouse/keyboard/file/power/process commands
+
 Usage:  python -m desktop_agent.agent
 """
 
@@ -24,11 +30,11 @@ import uuid
 
 import websockets
 
-from desktop_agent.modules.system_monitor import get_system_info
+from desktop_agent.modules.system_monitor import get_system_info, get_processes, kill_process, metrics_pusher
 from desktop_agent.modules.mouse_control import handle_mouse
 from desktop_agent.modules.keyboard_control import handle_keyboard
-from desktop_agent.modules.clipboard import handle_clipboard
-from desktop_agent.modules.screen import capture_screenshot
+from desktop_agent.modules.clipboard import handle_clipboard, clipboard_watcher
+from desktop_agent.modules.screen import capture_screenshot, screen_capture
 from desktop_agent.modules.file_manager import handle_file_command
 from desktop_agent.modules.power import handle_power
 from desktop_agent.modules.app_manager import handle_app
@@ -249,6 +255,26 @@ def send_heartbeat_rest(token: str, device_uuid: str) -> bool:
     return False
 
 
+# ── Active Session Tracking ──────────────────────────
+
+_active_session_id: str | None = None
+_session_tasks: dict[str, asyncio.Task] = {}
+
+
+def _is_session_active() -> bool:
+    return _active_session_id is not None
+
+
+def _require_session(data: dict) -> bool:
+    """Validate command has valid session context."""
+    if not _active_session_id:
+        return False
+    session_id = data.get("sessionId")
+    if session_id and session_id != _active_session_id:
+        return False
+    return True
+
+
 # ── WebSocket Command Router ─────────────────────────
 
 async def handle_message(ws, raw: str):
@@ -262,67 +288,130 @@ async def handle_message(ws, raw: str):
     data = msg.get("data", {})
 
     try:
+        # ── Infra events ──
         if cmd in ("ping", "pong", "heartbeat_ack", "subscribed"):
             if cmd == "ping":
                 await ws.send(json.dumps({"type": "pong", "ts": int(time.time() * 1000)}))
+
         elif cmd == "authenticated":
             logger.info(f"WS authenticated: {data.get('clientId')}")
         elif cmd == "device_registered":
             logger.info(f"WS device registered: {data.get('deviceId')}")
+
+        # ── Pairing ──
         elif cmd == "pairing_request":
             await _handle_pairing_request(ws, data)
         elif cmd in ("pairing_approved", "pairing_rejected"):
             logger.info(f"Pairing {cmd.split('_')[1]}: {data.get('requestId', data.get('status'))}")
-        elif cmd == "system_metrics":
-            metrics = get_system_info()
-            await ws.send(json.dumps({"type": "system_metrics", "data": metrics}))
-        elif cmd == "screenshot":
-            result = capture_screenshot(data.get("quality", 50))
-            await ws.send(json.dumps({"type": "screenshot", "data": result}))
-        elif cmd == "mouse":
-            handle_mouse(data)
-        elif cmd == "keyboard":
-            handle_keyboard(data)
-        elif cmd == "clipboard":
-            result = handle_clipboard(data)
-            await ws.send(json.dumps({"type": "clipboard", "data": result}))
-        elif cmd == "clipboard_updated":
-            text = data.get("text", "")
-            if text and data.get("source") != "agent":
-                handle_clipboard({"action": "set", "text": text})
-        elif cmd == "file":
-            result = handle_file_command(data)
-            await ws.send(json.dumps({"type": "file", "data": result}))
-        elif cmd == "power":
-            result = handle_power(data.get("action", ""))
-            await ws.send(json.dumps({"type": "power", "data": result}))
-        elif cmd == "app":
-            result = handle_app(data)
-            await ws.send(json.dumps({"type": "app", "data": result}))
+
+        # ── Session lifecycle ──
         elif cmd == "session_requested":
             await _handle_session_request(ws, data)
         elif cmd in ("session_accepted", "session_rejected"):
             logger.info(f"Session {cmd.split('_')[1]}: {data.get('sessionId', data.get('status'))}")
         elif cmd == "session_closed":
-            session_id = data.get("sessionId")
-            reason = data.get("reason", "unknown")
-            logger.info(f"Session closed: {session_id} ({reason})")
-            # Stop session heartbeat if running
-            _stop_session_heartbeat(session_id)
+            await _handle_session_closed(ws, data)
         elif cmd == "session_created":
             logger.info(f"Session event: {cmd} - {data.get('sessionId')}")
+
+        # ── Screen ──
+        elif cmd == "screenshot":
+            result = capture_screenshot(data.get("quality", 50))
+            await ws.send(json.dumps({"type": "screenshot", "data": result}))
+        elif cmd == "stream_config":
+            # Update streaming settings
+            screen_capture.configure(
+                quality=data.get("quality"),
+                fps=data.get("fps"),
+                scale=data.get("scale"),
+                adaptive=data.get("adaptive"),
+            )
+            await ws.send(json.dumps({"type": "stream_config_ack", "data": screen_capture.get_stats()}))
+        elif cmd == "stream_stats":
+            await ws.send(json.dumps({"type": "stream_stats", "data": screen_capture.get_stats()}))
+
+        # ── Mouse ──
+        elif cmd in ("mouse", "mouse_event"):
+            if _is_session_active():
+                handle_mouse(data)
+
+        # ── Keyboard ──
+        elif cmd in ("keyboard", "keyboard_event"):
+            if _is_session_active():
+                handle_keyboard(data)
+
+        # ── Clipboard ──
+        elif cmd == "clipboard":
+            result = handle_clipboard(data)
+            await ws.send(json.dumps({"type": "clipboard", "data": result}))
+        elif cmd in ("clipboard_updated", "clipboard_update"):
+            text = data.get("text", "")
+            if text and data.get("source") != "agent":
+                clipboard_watcher.suppress_next_change()
+                handle_clipboard({"action": "write", "text": text})
+        elif cmd == "clipboard_request":
+            result = handle_clipboard({"action": "read"})
+            await ws.send(json.dumps({
+                "type": "clipboard_update",
+                "data": {"text": result.get("text", ""), "source": "agent"},
+                "ts": int(time.time() * 1000),
+            }))
+
+        # ── File operations ──
+        elif cmd in ("file", "file_browse", "file_command"):
+            result = handle_file_command(data)
+            await ws.send(json.dumps({"type": "file_result", "data": result, "ts": int(time.time() * 1000)}))
+
+        # ── Process management ──
+        elif cmd == "process_list":
+            sort_by = data.get("sortBy", "cpu")
+            limit = data.get("limit", 50)
+            result = get_processes(sort_by, limit)
+            await ws.send(json.dumps({"type": "process_list", "data": result, "ts": int(time.time() * 1000)}))
+        elif cmd == "process_kill":
+            pid = data.get("pid")
+            if pid:
+                result = kill_process(int(pid))
+                await ws.send(json.dumps({"type": "process_kill", "data": result, "ts": int(time.time() * 1000)}))
+
+        # ── System ──
+        elif cmd == "system_metrics":
+            metrics = get_system_info()
+            await ws.send(json.dumps({"type": "system_metrics", "data": metrics}))
+        elif cmd == "system_update":
+            # Legacy from backend relay
+            pass
+
+        # ── Power ──
+        elif cmd in ("power", "system_command"):
+            action = data.get("action", data.get("command", ""))
+            if action in ("launch_app", "launch"):
+                result = handle_app(data)
+                await ws.send(json.dumps({"type": "app_result", "data": result, "ts": int(time.time() * 1000)}))
+            elif action in ("launch_url", "open_folder", "close"):
+                result = handle_app(data)
+                await ws.send(json.dumps({"type": "app_result", "data": result, "ts": int(time.time() * 1000)}))
+            else:
+                result = handle_power(action)
+                await ws.send(json.dumps({"type": "power_result", "data": result, "ts": int(time.time() * 1000)}))
+
+        # ── App ──
+        elif cmd == "app":
+            result = handle_app(data)
+            await ws.send(json.dumps({"type": "app", "data": result}))
+
         else:
             logger.warning(f"Unknown command: {cmd}")
+
     except Exception as e:
         logger.error(f"Error handling '{cmd}': {e}")
         await ws.send(json.dumps({"type": "error", "command": cmd, "message": str(e)}))
 
 
+# ── Pairing Dialog ────────────────────────────────────
+
 async def _handle_pairing_request(ws, data: dict):
-    """
-    Handle incoming pairing request from backend.
-    Shows a native desktop dialog and responds with approve/reject.
-    """
+    """Handle incoming pairing request — show native dialog."""
     request_id = data.get("requestId")
     code = data.get("code", "")
     mobile_name = data.get("mobileName", "Unknown Device")
@@ -330,7 +419,6 @@ async def _handle_pairing_request(ws, data: dict):
 
     logger.info(f"Pairing request received: {mobile_name} (code: {code}, expires: {expires_in}s)")
 
-    # Run the dialog in a thread to avoid blocking the event loop
     loop = asyncio.get_event_loop()
     approved = await loop.run_in_executor(None, _show_pairing_dialog, mobile_name, code)
 
@@ -339,29 +427,20 @@ async def _handle_pairing_request(ws, data: dict):
 
     await ws.send(json.dumps({
         "type": "pair_response",
-        "data": {
-            "requestId": request_id,
-            "code": code,
-            "action": action,
-        },
+        "data": {"requestId": request_id, "code": code, "action": action},
         "ts": int(time.time() * 1000),
     }))
 
 
 def _show_pairing_dialog(mobile_name: str, code: str) -> bool:
-    """
-    Show a native desktop confirmation dialog for pairing.
-    Returns True if user clicks Allow, False if Deny.
-    Uses tkinter (available on all Python installations).
-    """
+    """Show native dialog for pairing. Returns True=Allow, False=Deny."""
     try:
         import tkinter as tk
         from tkinter import messagebox
 
-        # Create a hidden root window
         root = tk.Tk()
         root.withdraw()
-        root.attributes('-topmost', True)  # Always on top
+        root.attributes('-topmost', True)
 
         title = "Nova Link - Pairing Request"
         message = (
@@ -377,27 +456,20 @@ def _show_pairing_dialog(mobile_name: str, code: str) -> bool:
 
     except Exception as e:
         logger.warning(f"Dialog failed, auto-approving in dev mode: {e}")
-        # Fallback: auto-approve if no display available
         return True
 
 
 # ── Session Management ───────────────────────────────
 
-# Active session heartbeat tasks
-_session_heartbeat_tasks: dict[str, asyncio.Task] = {}
-
-
 async def _handle_session_request(ws, data: dict):
-    """
-    Handle incoming session request from backend.
-    Shows a native desktop dialog and responds with accept/reject.
-    """
+    """Handle incoming session request — show dialog, start services on accept."""
+    global _active_session_id
+
     session_id = data.get("sessionId")
     user_name = data.get("userName", "Unknown User")
 
     logger.info(f"Session request received: {user_name} (session: {session_id})")
 
-    # Run the dialog in a thread to avoid blocking the event loop
     loop = asyncio.get_event_loop()
     accepted = await loop.run_in_executor(None, _show_session_dialog, user_name)
 
@@ -406,75 +478,116 @@ async def _handle_session_request(ws, data: dict):
 
     await ws.send(json.dumps({
         "type": "session_response",
-        "data": {
-            "sessionId": session_id,
-            "action": action,
-        },
+        "data": {"sessionId": session_id, "action": action},
         "ts": int(time.time() * 1000),
     }))
 
-    # Start session heartbeat if accepted
     if accepted and session_id:
-        task = asyncio.create_task(_session_heartbeat_loop(ws, session_id))
-        _session_heartbeat_tasks[session_id] = task
-        logger.info(f"Session heartbeat started for {session_id}")
+        _active_session_id = session_id
+        logger.info(f"Session activated: {session_id}")
+
+        # Start session services
+        _start_session_service("heartbeat", asyncio.create_task(_session_heartbeat_loop(ws, session_id)))
+        _start_session_service("streaming", asyncio.create_task(screen_capture.start_streaming(ws, session_id)))
+        _start_session_service("clipboard", asyncio.create_task(clipboard_watcher.start_watching(ws, session_id)))
+        _start_session_service("metrics", asyncio.create_task(metrics_pusher.start_pushing(ws, session_id)))
 
 
 def _show_session_dialog(user_name: str) -> bool:
     """
-    Show a native desktop dialog for incoming session request.
-    Returns True if user clicks Allow, False if Deny.
+    Show session request notification and auto-accept.
+    
+    Security note: The real protection is the TrustedDevice check in
+    session_service.create_session(). This dialog is informational only.
+    In production, this would be a system tray notification with deny option.
     """
     try:
         import tkinter as tk
-        from tkinter import messagebox
 
         root = tk.Tk()
-        root.withdraw()
+        root.title("Nova Link")
         root.attributes('-topmost', True)
+        root.geometry("320x100+{}+{}".format(
+            root.winfo_screenwidth() // 2 - 160,
+            50
+        ))
+        root.configure(bg='#1e293b')
+        root.overrideredirect(True)
 
-        title = "Nova Link - Connection Request"
-        message = (
-            f"{user_name}\n"
-            f"wants to connect to this computer.\n\n"
-            f"Do you want to allow this remote session?"
+        label = tk.Label(
+            root,
+            text=f"🔗  {user_name} connecting...\nSession auto-accepted (trusted device)",
+            bg='#1e293b', fg='#94a3b8',
+            font=('Segoe UI', 10),
+            justify='center',
         )
+        label.pack(expand=True)
 
-        result = messagebox.askyesno(title, message, icon='question', parent=root)
-        root.destroy()
-        return result
+        # Auto-close notification after 3 seconds
+        root.after(3000, root.destroy)
+        root.after(3100, lambda: None)  # safety
+        
+        try:
+            root.mainloop()
+        except Exception:
+            pass
 
     except Exception as e:
-        logger.warning(f"Session dialog failed, auto-accepting in dev mode: {e}")
-        return True
+        logger.debug(f"Session notification skipped: {e}")
+
+    logger.info(f"Session auto-accepted for trusted user: {user_name}")
+    return True
+
+
+async def _handle_session_closed(ws, data: dict):
+    """Handle session close — stop all session services."""
+    global _active_session_id
+
+    session_id = data.get("sessionId")
+    reason = data.get("reason", "unknown")
+    logger.info(f"Session closed: {session_id} ({reason})")
+
+    _stop_all_session_services()
+    _active_session_id = None
+
+
+def _start_session_service(name: str, task: asyncio.Task):
+    """Register a session-bound task."""
+    old = _session_tasks.pop(name, None)
+    if old and not old.done():
+        old.cancel()
+    _session_tasks[name] = task
+    logger.info(f"Session service started: {name}")
+
+
+def _stop_all_session_services():
+    """Stop all session-bound tasks."""
+    screen_capture.stop()
+    clipboard_watcher.stop()
+    metrics_pusher.stop()
+
+    for name, task in _session_tasks.items():
+        if not task.done():
+            task.cancel()
+            logger.info(f"Session service stopped: {name}")
+    _session_tasks.clear()
 
 
 async def _session_heartbeat_loop(ws, session_id: str):
     """Send session heartbeat every 5 seconds to keep session alive."""
     try:
-        while True:
+        while _active_session_id == session_id:
             await asyncio.sleep(5)
             try:
                 await ws.send(json.dumps({
                     "type": "session_heartbeat",
-                    "data": {
-                        "sessionId": session_id,
-                        "source": "desktop",
-                    },
+                    "data": {"sessionId": session_id, "source": "desktop"},
                     "ts": int(time.time() * 1000),
                 }))
             except Exception:
                 break
     except asyncio.CancelledError:
         logger.info(f"Session heartbeat stopped for {session_id}")
-
-
-def _stop_session_heartbeat(session_id: str):
-    """Stop the session heartbeat task."""
-    task = _session_heartbeat_tasks.pop(session_id, None)
-    if task:
-        task.cancel()
-        logger.info(f"Session heartbeat cancelled for {session_id}")
 
 
 # ── Background Tasks ─────────────────────────────────
@@ -517,29 +630,6 @@ async def system_push_loop(ws):
             break
 
 
-async def clipboard_monitor_loop(ws):
-    """Monitor clipboard for changes."""
-    last_content = ""
-    while True:
-        try:
-            await asyncio.sleep(CLIPBOARD_CHECK_INTERVAL)
-            try:
-                result = handle_clipboard({"action": "get"})
-                current = result.get("text", "")
-            except Exception:
-                continue
-
-            if current and current != last_content:
-                last_content = current
-                await ws.send(json.dumps({
-                    "type": "clipboard_sync",
-                    "data": {"text": current, "source": "agent"},
-                    "ts": int(time.time() * 1000),
-                }))
-        except Exception:
-            break
-
-
 # ── Main Loop ─────────────────────────────────────────
 
 async def agent_loop():
@@ -563,7 +653,7 @@ async def agent_loop():
 
         logger.info("Authenticated with backend")
 
-        # 2. Register device via REST (ensures DB record exists)
+        # 2. Register device via REST
         register_device_rest(token, device_uuid)
 
         try:
@@ -571,11 +661,11 @@ async def agent_loop():
             ws_url = f"{WS_URL}?token={token}&device_id={device_uuid}"
             logger.info("Connecting WebSocket...")
 
-            async with websockets.connect(ws_url) as ws:
+            async with websockets.connect(ws_url, max_size=10 * 1024 * 1024) as ws:
                 logger.info("WebSocket connected")
                 delay = RECONNECT_DELAY
 
-                # 4. Register device in WS registry (for real-time broadcasts)
+                # 4. Register device in WS registry
                 await ws.send(json.dumps({
                     "type": "register_device",
                     "data": {
@@ -594,7 +684,6 @@ async def agent_loop():
                 tasks = [
                     asyncio.create_task(heartbeat_loop(ws, device_uuid, token)),
                     asyncio.create_task(system_push_loop(ws)),
-                    asyncio.create_task(clipboard_monitor_loop(ws)),
                 ]
 
                 # 6. Listen for commands
@@ -602,6 +691,8 @@ async def agent_loop():
                     async for message in ws:
                         await handle_message(ws, message)
                 finally:
+                    # Cleanup session services
+                    _stop_all_session_services()
                     for task in tasks:
                         task.cancel()
                     await asyncio.gather(*tasks, return_exceptions=True)

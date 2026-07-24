@@ -7,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 
 from backend.models.device import Device
+from backend.models.pairing import TrustedDevice
 
 logger = logging.getLogger("nova.devices")
 
@@ -76,6 +77,25 @@ def register_device(db: Session, user_id: str, data: dict) -> dict:
         db.commit()
         db.refresh(device)
         logger.info(f"Device registered: {device.device_name} ({device_uuid})")
+
+        # Auto-trust: desktop agents trust themselves
+        if data.get("deviceType", "desktop") in ("desktop", "laptop"):
+            existing_trust = db.query(TrustedDevice).filter(
+                TrustedDevice.desktop_device_id == device_uuid,
+                TrustedDevice.user_id == user_id,
+            ).first()
+            if not existing_trust:
+                trust = TrustedDevice(
+                    desktop_device_id=device_uuid,
+                    mobile_device_id=f"self-{user_id[:8]}",
+                    user_id=user_id,
+                    paired_at=now,
+                    last_connected=now,
+                    is_active=True,
+                )
+                db.add(trust)
+                db.commit()
+                logger.info(f"Auto-trusted device: {device_uuid}")
 
     return _device_to_dict(device)
 

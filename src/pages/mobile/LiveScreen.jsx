@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, Info, Volume2, VolumeX, Video, VideoOff, Sliders, Maximize2, Minimize2, Camera } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import useSessionStore from '../../stores/sessionStore';
 
 export default function LiveScreen({ onBack }) {
-  const { isMuted, isSpeakerOn, isFullscreen, quality, toggleMute, toggleSpeaker, toggleFullscreen, setQuality } = useSessionStore();
+  const {
+    isMuted, isSpeakerOn, isFullscreen, quality,
+    toggleMute, toggleSpeaker, toggleFullscreen, setQuality,
+    screenFrame, screenWidth, screenHeight, frameNumber, streamStatus, streamQuality,
+    isConnected, sessionStatus,
+  } = useSessionStore();
   const [currentTime, setCurrentTime] = useState('9:41 AM');
+  const imgRef = useRef(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -25,17 +31,33 @@ export default function LiveScreen({ onBack }) {
   };
 
   const handleScreenshot = () => {
-    toast.success('Screenshot saved');
+    if (screenFrame && imgRef.current) {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = imgRef.current.naturalWidth;
+        canvas.height = imgRef.current.naturalHeight;
+        canvas.getContext('2d').drawImage(imgRef.current, 0, 0);
+        const link = document.createElement('a');
+        link.download = `nova-screenshot-${Date.now()}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.9);
+        link.click();
+        toast.success('Screenshot saved');
+      } catch {
+        toast.error('Screenshot failed');
+      }
+    } else {
+      toast.success('Screenshot saved');
+    }
   };
 
-  // Mock windows desktop icons
-  const desktopIcons = [
-    { name: 'This PC', icon: '💻' },
-    { name: 'Recycle Bin', icon: '🗑️' },
-    { name: 'Google Chrome', icon: '🌐' },
-    { name: 'VS Code', icon: '📝' },
-    { name: 'Folder', icon: '📁' },
-  ];
+  // Determine display status
+  const isStreaming = streamStatus === 'streaming' && screenFrame;
+  const statusText = isStreaming ? 'Live' :
+    sessionStatus === 'connected' ? 'Connecting...' :
+    sessionStatus === 'creating' || sessionStatus === 'waiting' ? 'Waiting...' :
+    'Disconnected';
+  const statusColor = isStreaming ? 'text-green-400' : sessionStatus === 'connected' ? 'text-yellow-400' : 'text-slate-500';
+  const dotColor = isStreaming ? 'bg-green-500' : sessionStatus === 'connected' ? 'bg-yellow-500' : 'bg-slate-600';
 
   return (
     <motion.div
@@ -51,9 +73,11 @@ export default function LiveScreen({ onBack }) {
             <ChevronLeft size={20} />
           </motion.button>
           <div>
-            <span className="text-white text-sm font-semibold block">My Laptop</span>
-            <span className="text-[9px] text-green-400 font-mono flex items-center gap-1">
-              <span className="w-1 h-1 bg-green-500 rounded-full"></span> Live
+            <span className="text-white text-sm font-semibold block">Remote Desktop</span>
+            <span className={`text-[9px] ${statusColor} font-mono flex items-center gap-1`}>
+              <span className={`w-1 h-1 ${dotColor} rounded-full ${isStreaming ? 'animate-pulse' : ''}`}></span>
+              {statusText}
+              {isStreaming && <span className="text-slate-600 ml-1">F{frameNumber} Q{streamQuality}</span>}
             </span>
           </div>
         </div>
@@ -67,59 +91,48 @@ export default function LiveScreen({ onBack }) {
         </motion.button>
       </div>
 
-      {/* Simulated Windows 11 Desktop Screen */}
-      <div className={`flex-1 relative overflow-hidden bg-[#101b35] flex flex-col justify-between p-4 select-none ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
-        
-        {/* Windows 11 Blue Bloom Wallpaper graphic */}
-        <div className="absolute inset-0 bg-radial-gradient from-blue-600/40 via-indigo-950 to-slate-950 flex items-center justify-center">
-          {/* Stylized Bloom shapes */}
-          <div className="absolute w-[220px] h-[220px] bg-blue-500/20 rounded-full blur-[80px] animate-pulse"></div>
-          <div className="absolute w-[180px] h-[180px] bg-purple-500/20 rounded-full blur-[60px]"></div>
-          <div className="absolute w-[80px] h-[100px] bg-[#38bdf8]/30 rounded-full blur-2xl transform rotate-45"></div>
-        </div>
-
-        {/* Desktop Icons (Left Side Column) */}
-        <div className="relative z-10 flex flex-col gap-4 items-start pt-2">
-          {desktopIcons.map((item, idx) => (
-            <motion.div
-              key={idx}
-              className="flex flex-col items-center justify-center w-14 h-14 rounded hover:bg-white/10 active:bg-white/20 p-1 cursor-pointer"
-              whileTap={{ scale: 0.9 }}
-              onClick={() => toast(`Opened ${item.name}`, { icon: item.icon })}
-            >
-              <span className="text-lg">{item.icon}</span>
-              <span className="text-[8px] text-white/95 font-medium tracking-wide mt-1 text-center truncate w-full shadow-sm">
-                {item.name}
-              </span>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Windows Taskbar at the bottom of the remote screen */}
-        <div className="relative z-10 w-full h-8 bg-slate-900/80 backdrop-blur-md border-t border-white/5 rounded-md flex items-center justify-between px-3 mt-auto">
-          {/* Start Menu & Icons Centered */}
-          <div className="flex-1 flex justify-center items-center gap-2">
-            {/* Windows 11 Start Logo representation */}
-            <div className="w-3.5 h-3.5 grid grid-cols-2 gap-[1px] cursor-pointer">
-              <div className="bg-[#0078d4]"></div>
-              <div className="bg-[#0078d4]"></div>
-              <div className="bg-[#0078d4]"></div>
-              <div className="bg-[#0078d4]"></div>
+      {/* Screen Display Area */}
+      <div className={`flex-1 relative overflow-hidden bg-[#101b35] flex items-center justify-center select-none ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+        {isStreaming ? (
+          /* Real screen frame */
+          <img
+            ref={imgRef}
+            src={`data:image/jpeg;base64,${screenFrame}`}
+            alt="Remote Desktop"
+            className="max-w-full max-h-full object-contain"
+            draggable={false}
+          />
+        ) : (
+          /* Placeholder / Status */
+          <div className="flex flex-col items-center justify-center gap-4">
+            {/* Bloom background */}
+            <div className="absolute inset-0 bg-radial-gradient from-blue-600/40 via-indigo-950 to-slate-950 flex items-center justify-center">
+              <div className="absolute w-[220px] h-[220px] bg-blue-500/20 rounded-full blur-[80px] animate-pulse"></div>
+              <div className="absolute w-[180px] h-[180px] bg-purple-500/20 rounded-full blur-[60px]"></div>
             </div>
-            
-            {/* Taskbar pinned apps */}
-            <div className="w-2.5 h-2.5 bg-yellow-500 rounded-sm"></div>
-            <div className="w-2.5 h-2.5 bg-blue-500 rounded-sm"></div>
-            <div className="w-2.5 h-2.5 bg-purple-500 rounded-sm"></div>
-            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></div>
+            <div className="relative z-10 text-center">
+              {sessionStatus === 'connected' ? (
+                <>
+                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                  <p className="text-slate-400 text-xs">Starting stream...</p>
+                </>
+              ) : sessionStatus === 'creating' || sessionStatus === 'waiting' ? (
+                <>
+                  <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                  <p className="text-slate-400 text-xs">Waiting for desktop to accept...</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-12 bg-slate-800 rounded border border-slate-700 mb-3 mx-auto flex items-center justify-center">
+                    <div className="w-8 h-6 bg-slate-900 rounded-sm"></div>
+                  </div>
+                  <p className="text-slate-500 text-xs">No active session</p>
+                  <p className="text-slate-600 text-[10px] mt-1">Connect from Devices page</p>
+                </>
+              )}
+            </div>
           </div>
-          
-          {/* System Tray (Clock / Battery / Status) */}
-          <div className="flex items-center gap-1.5 text-[8px] text-white/80 font-medium">
-            <span>ENG</span>
-            <span>{currentTime}</span>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Floating Control Toolbar */}

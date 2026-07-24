@@ -50,12 +50,39 @@ async def handle_message(client_id: str, raw_data: str):
             await _handle_session_response(client_id, data, ts)
         elif msg_type == "session_heartbeat":
             await _handle_session_heartbeat(client_id, data, ts)
-        elif msg_type == "clipboard_sync":
-            await _handle_clipboard_sync(client_id, data, ts)
+
+        # ── Sprint 5: Remote Desktop Events ──
+        elif msg_type == "screen_frame":
+            await _handle_screen_frame(client_id, data, ts)
         elif msg_type == "mouse_event":
             await _handle_mouse_event(client_id, data, ts)
         elif msg_type == "keyboard_event":
             await _handle_keyboard_event(client_id, data, ts)
+        elif msg_type == "clipboard_sync":
+            await _handle_clipboard_sync(client_id, data, ts)
+        elif msg_type == "clipboard_update":
+            await _handle_clipboard_update(client_id, data, ts)
+        elif msg_type == "clipboard_request":
+            await _handle_clipboard_request(client_id, data, ts)
+        elif msg_type == "file_command":
+            await _handle_file_command(client_id, data, ts)
+        elif msg_type == "file_result":
+            await _handle_file_result(client_id, data, ts)
+        elif msg_type == "process_list":
+            await _handle_forward_to_browsers(client_id, msg_type, data, ts)
+        elif msg_type == "process_kill":
+            await _handle_forward_to_agent(client_id, msg_type, data, ts)
+        elif msg_type == "system_command":
+            await _handle_forward_to_agent(client_id, msg_type, data, ts)
+        elif msg_type == "power":
+            await _handle_forward_to_agent(client_id, msg_type, data, ts)
+        elif msg_type in ("power_result", "app_result"):
+            await _handle_forward_to_browsers(client_id, msg_type, data, ts)
+        elif msg_type == "stream_config":
+            await _handle_forward_to_agent(client_id, msg_type, data, ts)
+        elif msg_type in ("stream_config_ack", "stream_stats"):
+            await _handle_forward_to_browsers(client_id, msg_type, data, ts)
+
         elif msg_type == "system_update":
             await _handle_system_update(client_id, data, ts)
         elif msg_type == "subscribe":
@@ -729,3 +756,124 @@ async def handle_disconnect(client_id: str):
         await _broadcast_activity(user_id, "device_disconnected",
                                   f"Device disconnected — {device_name or 'Unknown'}",
                                   device_name=device_name, icon="wifi-off", ts=ts)
+
+
+# ── Sprint 5: Remote Desktop Handlers ────────────────
+
+async def _handle_screen_frame(client_id: str, data: dict, ts: int):
+    """Forward screen frame from agent → user's browsers."""
+    conn = manager.get_connection(client_id)
+    if not conn or conn.client_type != "agent" or not conn.user_id:
+        return
+
+    # Forward directly to user's browsers — zero processing
+    await manager.send_to_user_browsers(conn.user_id, {
+        "type": "screen_frame",
+        "data": data,
+        "ts": ts,
+    })
+
+
+async def _handle_clipboard_update(client_id: str, data: dict, ts: int):
+    """Forward clipboard change from agent → browsers, or browser → agent."""
+    conn = manager.get_connection(client_id)
+    if not conn or not conn.user_id:
+        return
+
+    source = data.get("source", "")
+
+    if conn.client_type == "agent":
+        # Agent → browsers
+        await manager.send_to_user_browsers(conn.user_id, {
+            "type": "clipboard_update",
+            "data": data,
+            "ts": ts,
+        })
+    elif conn.client_type == "browser":
+        # Browser → agent (set desktop clipboard)
+        device_id = data.get("deviceId")
+        if device_id:
+            await manager.send_to_device_agent(device_id, {
+                "type": "clipboard_updated",
+                "data": {"text": data.get("text", ""), "source": "browser"},
+                "ts": ts,
+            })
+
+
+async def _handle_clipboard_request(client_id: str, data: dict, ts: int):
+    """Browser requests current clipboard from agent."""
+    conn = manager.get_connection(client_id)
+    if not conn or not conn.user_id:
+        return
+
+    device_id = data.get("deviceId")
+    if device_id:
+        await manager.send_to_device_agent(device_id, {
+            "type": "clipboard_request",
+            "data": {},
+            "ts": ts,
+        })
+
+
+async def _handle_file_command(client_id: str, data: dict, ts: int):
+    """Forward file command from browser → agent."""
+    conn = manager.get_connection(client_id)
+    if not conn or not conn.user_id:
+        return
+
+    device_id = data.get("deviceId")
+    if device_id:
+        await manager.send_to_device_agent(device_id, {
+            "type": "file_command",
+            "data": data,
+            "ts": ts,
+        })
+
+
+async def _handle_file_result(client_id: str, data: dict, ts: int):
+    """Forward file result from agent → user's browsers."""
+    conn = manager.get_connection(client_id)
+    if not conn or conn.client_type != "agent" or not conn.user_id:
+        return
+
+    await manager.send_to_user_browsers(conn.user_id, {
+        "type": "file_result",
+        "data": data,
+        "ts": ts,
+    })
+
+
+async def _handle_forward_to_agent(client_id: str, msg_type: str, data: dict, ts: int):
+    """Generic: forward a message from browser → agent."""
+    conn = manager.get_connection(client_id)
+    if not conn or not conn.user_id:
+        return
+
+    device_id = data.get("deviceId")
+    if not device_id:
+        # Try to find any connected agent for this user
+        for did, cid in manager._device_agents.items():
+            agent_conn = manager.get_connection(cid)
+            if agent_conn and agent_conn.user_id == conn.user_id:
+                device_id = did
+                break
+
+    if device_id:
+        await manager.send_to_device_agent(device_id, {
+            "type": msg_type,
+            "data": data,
+            "ts": ts,
+        })
+
+
+async def _handle_forward_to_browsers(client_id: str, msg_type: str, data: dict, ts: int):
+    """Generic: forward a message from agent → user's browsers."""
+    conn = manager.get_connection(client_id)
+    if not conn or not conn.user_id:
+        return
+
+    await manager.send_to_user_browsers(conn.user_id, {
+        "type": msg_type,
+        "data": data,
+        "ts": ts,
+    })

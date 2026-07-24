@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { ChevronLeft, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
+import websocketManager from '../../services/websocketManager';
 
 export default function Keyboard({ onBack }) {
   const [typedText, setTypedText] = useState('');
@@ -20,24 +21,37 @@ export default function Keyboard({ onBack }) {
     setPressedKey(key);
     setTimeout(() => setPressedKey(null), 150);
 
+    // Build modifiers array
+    const modifiers = [];
+    if (isShiftOn && key !== 'shift') modifiers.push('shift');
+
     if (key === 'space') {
       setTypedText((prev) => prev + ' ');
+      websocketManager.send('keyboard_event', { action: 'key', key: 'space', modifiers });
     } else if (key === 'backspace') {
       setTypedText((prev) => prev.slice(0, -1));
+      websocketManager.send('keyboard_event', { action: 'key', key: 'Backspace', modifiers });
     } else if (key === 'enter') {
       setTypedText((prev) => prev + '\n');
+      websocketManager.send('keyboard_event', { action: 'key', key: 'Enter', modifiers });
     } else if (key === 'Del') {
       setTypedText('');
+      websocketManager.send('keyboard_event', { action: 'key', key: 'Delete', modifiers });
     } else if (key === 'shift') {
       setIsShiftOn((prev) => !prev);
     } else if (key === 'Esc') {
       setTypedText('');
-    } else if (['ctrl', 'alt', 'fn', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10'].includes(key)) {
-      // Modifier/function keys - no text output
+      websocketManager.send('keyboard_event', { action: 'key', key: 'Escape', modifiers });
+    } else if (['ctrl', 'alt', 'fn'].includes(key)) {
+      // Modifier keys - no text output, no WS send
+    } else if (key.startsWith('F') && key.length > 1) {
+      // Function keys
+      websocketManager.send('keyboard_event', { action: 'key', key, modifiers });
     } else {
       const char = (isShiftOn || isCapsLock) ? key.toUpperCase() : key;
       setTypedText((prev) => prev + char);
-      if (isShiftOn) setIsShiftOn(false); // Auto-release shift after one key
+      websocketManager.send('keyboard_event', { action: 'type', text: char, modifiers });
+      if (isShiftOn) setIsShiftOn(false);
     }
   }, [isShiftOn, isCapsLock]);
 

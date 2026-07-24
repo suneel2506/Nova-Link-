@@ -35,6 +35,19 @@ const useSessionStore = create((set, get) => ({
   quality: '1080p',
   isLoading: false,
 
+  // ── Sprint 5: Remote Desktop State ────────────────
+  screenFrame: null,
+  screenWidth: 0,
+  screenHeight: 0,
+  frameNumber: 0,
+  streamQuality: 50,
+  streamStatus: 'idle', // idle | streaming | paused | error
+  clipboardText: '',
+  processList: null,
+  lastFileResult: null,
+  lastPowerResult: null,
+  lastAppResult: null,
+
   // ── Internal ──────────────────────────────────────
   _heartbeatInterval: null,
   _reconnectAttempts: 0,
@@ -367,4 +380,54 @@ websocketManager.on('session_error', (data) => {
   });
 });
 
+// ── Sprint 5: Screen Streaming ──────────────────────
+
+websocketManager.on('screen_frame', (data) => {
+  useSessionStore.setState({
+    screenFrame: data.image,
+    screenWidth: data.width,
+    screenHeight: data.height,
+    frameNumber: data.frameNumber,
+    streamQuality: data.quality,
+    streamStatus: 'streaming',
+  });
+});
+
+// ── Sprint 5: Clipboard Sync ────────────────────────
+
+websocketManager.on('clipboard_update', (data) => {
+  if (data.source === 'agent') {
+    useSessionStore.setState({ clipboardText: data.text });
+  }
+});
+
+// ── Sprint 5: File Results ──────────────────────────
+
+websocketManager.on('file_result', (data) => {
+  // Forward to fileStore
+  const fileStore = window.__novaFileStore;
+  if (fileStore) {
+    fileStore(data);
+  }
+  // Also store on session for any listening components
+  useSessionStore.setState({ lastFileResult: data });
+});
+
+// ── Sprint 5: Power/App Results ─────────────────────
+
+websocketManager.on('power_result', (data) => {
+  useSessionStore.setState({ lastPowerResult: data });
+});
+
+websocketManager.on('app_result', (data) => {
+  useSessionStore.setState({ lastAppResult: data });
+});
+
+// ── Sprint 5: Process List ──────────────────────────
+
+websocketManager.on('process_list', (data) => {
+  useSessionStore.setState({ processList: data });
+});
+
 export default useSessionStore;
+

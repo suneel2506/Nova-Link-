@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { ChevronLeft, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import websocketManager from '../../services/websocketManager';
 
 export default function Trackpad({ onBack }) {
   const [pointer, setPointer] = useState({ x: 150, y: 200 });
@@ -22,6 +23,15 @@ export default function Trackpad({ onBack }) {
     const y = Math.max(0, Math.min(clientY - rect.top, rect.height));
     
     setPointer({ x, y });
+
+    // Send mouse move via WS
+    websocketManager.send('mouse_event', {
+      action: 'move',
+      x: Math.round(x),
+      y: Math.round(y),
+      screenWidth: Math.round(rect.width),
+      screenHeight: Math.round(rect.height),
+    });
   }, []);
 
   const handleTouchStart = useCallback((e) => {
@@ -32,6 +42,16 @@ export default function Trackpad({ onBack }) {
     setClickFeedback(type);
     toast(`${type === 'left' ? 'Left' : 'Right'} click sent`, { icon: type === 'left' ? '🖱️' : '📋' });
     setTimeout(() => setClickFeedback(null), 200);
+
+    // Send click via WS
+    websocketManager.send('mouse_event', {
+      action: type === 'right' ? 'right_click' : 'click',
+      button: type === 'right' ? 'right' : 'left',
+      x: Math.round(pointer.x),
+      y: Math.round(pointer.y),
+      screenWidth: padRef.current?.clientWidth || 300,
+      screenHeight: padRef.current?.clientHeight || 400,
+    });
   };
 
   const handleScrollTouchStart = (e) => {
@@ -43,6 +63,14 @@ export default function Trackpad({ onBack }) {
     const deltaY = lastTouchY.current - e.touches[0].clientY;
     lastTouchY.current = e.touches[0].clientY;
     setScrollY((prev) => prev + deltaY);
+
+    // Send scroll via WS
+    if (Math.abs(deltaY) > 2) {
+      websocketManager.send('mouse_event', {
+        action: 'scroll',
+        deltaY: Math.round(deltaY / 3),
+      });
+    }
   };
 
   const handleScrollTouchEnd = () => {
