@@ -21,8 +21,10 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         self._requests: dict[str, list[float]] = defaultdict(list)
 
     async def dispatch(self, request: Request, call_next):
-        # Only rate-limit auth endpoints
-        if "/auth/" in request.url.path:
+        # Only rate-limit brute-force-sensitive auth endpoints
+        # (NOT /auth/me, /auth/profile, /auth/refresh which are called frequently)
+        path = request.url.path
+        if "/auth/login" in path or "/auth/register" in path:
             client_ip = request.client.host if request.client else "unknown"
             now = time.time()
 

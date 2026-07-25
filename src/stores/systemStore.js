@@ -27,6 +27,8 @@ const useSystemStore = create((set, get) => ({
         isLoading: false,
       });
     } catch {
+      // Silently swallow errors — metrics are best-effort.
+      // Do NOT propagate to auth interceptor to avoid logout cascades.
       set({ isLoading: false });
     }
   },

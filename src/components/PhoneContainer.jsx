@@ -40,6 +40,16 @@ export default function PhoneContainer() {
     }
   }, [initialized, isAuthenticated]);
 
+  // Safety fallback: ensure initialized is set even if rehydration fired before listener
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!useAuthStore.getState().initialized) {
+        useAuthStore.getState().initialize();
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleLogout = async () => {
     await logout();
     setCurrentScreen('login');

@@ -114,9 +114,10 @@ api.interceptors.response.use(
 
       const refreshToken = getRefreshToken();
       if (!refreshToken) {
+        // No refresh token — likely a race condition after login.
+        // Don't clear auth or fire auth:expired; just reject this one request.
         isRefreshing = false;
-        clearStoredAuth();
-        window.dispatchEvent(new CustomEvent('auth:expired'));
+        processQueue(error, null);
         return Promise.reject(error);
       }
 
@@ -135,8 +136,13 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        clearStoredAuth();
-        window.dispatchEvent(new CustomEvent('auth:expired'));
+        // Only clear auth if the server explicitly rejected the refresh (401/403).
+        // Network errors should NOT trigger logout.
+        const refreshStatus = refreshError?.response?.status;
+        if (refreshStatus === 401 || refreshStatus === 403) {
+          clearStoredAuth();
+          window.dispatchEvent(new CustomEvent('auth:expired'));
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

@@ -1,0 +1,11 @@
+1️⃣ Step 1: Start the Backend Server
+bash
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+2️⃣ Step 2: Start the Frontend Web App
+bash
+npm run dev
+3️⃣ Step 3 (Optional): Start Desktop Agent
+If you want to use desktop monitoring, mouse/keyboard control, or screen streaming features:
+
+bash
+python -m desktop_agent.agent

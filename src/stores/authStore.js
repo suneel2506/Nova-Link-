@@ -41,6 +41,7 @@ const useAuthStore = create(
             accessToken: data.token,
             refreshToken: data.refresh_token,
             isAuthenticated: true,
+            initialized: true,
             rememberMe,
             loading: false,
             error: null,
@@ -63,6 +64,7 @@ const useAuthStore = create(
             accessToken: data.token,
             refreshToken: data.refresh_token,
             isAuthenticated: true,
+            initialized: true,
             rememberMe: false,
             loading: false,
             error: null,
@@ -96,7 +98,8 @@ const useAuthStore = create(
       refreshAccessToken: async () => {
         const { refreshToken: currentRefresh } = get();
         if (!currentRefresh) {
-          get().logout();
+          // No refresh token available — don't force logout,
+          // let the caller decide what to do.
           return null;
         }
 
@@ -108,8 +111,13 @@ const useAuthStore = create(
             user: { ...get().user, token: data.token, refresh_token: data.refresh_token },
           });
           return data.token;
-        } catch {
-          get().logout();
+        } catch (err) {
+          // Only logout if the refresh token itself is rejected (401/403),
+          // NOT on network errors or server issues.
+          const status = err?.response?.status || err?.status;
+          if (status === 401 || status === 403 || (err.message && err.message.includes('expired'))) {
+            get().logout();
+          }
           return null;
         }
       },
@@ -122,9 +130,15 @@ const useAuthStore = create(
             user: { ...state.user, ...data },
           }));
           return data;
-        } catch {
-          // Token likely invalid — logout
-          get().logout();
+        } catch (err) {
+          // Only logout on genuine auth failures (401),
+          // NOT on network errors, timeouts, or server 500s.
+          const msg = err?.message || '';
+          if (msg.includes('Invalid or expired token') || msg.includes('Token missing')) {
+            get().logout();
+          }
+          // For all other errors (network, 500, 429), just return null
+          // and let the user stay logged in.
           return null;
         }
       },
@@ -189,30 +203,35 @@ const useAuthStore = create(
         }
         return base;
       },
-      onRehydrate: () => {
-        return (state) => {
-          if (state?.isAuthenticated && state?.accessToken) {
-            // Defer initialization to let the app render first
-            setTimeout(() => {
-              useAuthStore.getState().initialize();
-            }, 100);
-          } else {
-            // Mark as initialized immediately
-            useAuthStore.setState({ initialized: true });
-          }
-        };
+      onRehydrateStorage: () => (state) => {
+        if (state?.isAuthenticated && state?.accessToken) {
+          // Defer initialization to let the app render first
+          setTimeout(() => {
+            useAuthStore.getState().initialize();
+          }, 100);
+        } else {
+          // Mark as initialized immediately
+          useAuthStore.setState({ initialized: true });
+        }
       },
     }
   )
 );
 
 // ── Listen for auth:expired events from Axios interceptor ─────
+// Debounced to prevent rapid-fire logouts from multiple failing requests.
 if (typeof window !== 'undefined') {
+  let _authExpiredTimer = null;
   window.addEventListener('auth:expired', () => {
-    const store = useAuthStore.getState();
-    if (store.isAuthenticated) {
-      store.logout();
-    }
+    if (_authExpiredTimer) return; // Already scheduled
+    _authExpiredTimer = setTimeout(() => {
+      _authExpiredTimer = null;
+      const store = useAuthStore.getState();
+      if (store.isAuthenticated) {
+        console.warn('[Auth] Token expired — logging out');
+        store.logout();
+      }
+    }, 1000); // 1s debounce
   });
 }
 
